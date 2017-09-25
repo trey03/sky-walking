@@ -12,16 +12,17 @@ if [ ! -d "${COLLECTOR_HOME}/logs" ]; then
 fi
 
 _RUNJAVA=${JAVA_HOME}/bin/java
-[ -z "$JAVA_HOME" ] && _RUNJAVA=`java`
+[ -z "$JAVA_HOME" ] && _RUNJAVA=java
 
 CLASSPATH="$COLLECTOR_HOME/config:$CLASSPATH"
 for i in "$COLLECTOR_HOME"/libs/*.jar
 do
     CLASSPATH="$i:$CLASSPATH"
 done
-
+COLLECTOR_OPTIONS=" -Dcollector.logDir=$COLLECTOR_LOGS_DIR"
 echo "Starting collector...."
-eval exec "\"$_RUNJAVA\" ${JAVA_OPTS} -classpath $CLASSPATH org.skywalking.apm.collector.boot.CollectorBootStartUp \
+
+eval exec "\"$_RUNJAVA\" ${JAVA_OPTS} ${COLLECTOR_OPTIONS} -classpath $CLASSPATH org.skywalking.apm.collector.boot.CollectorBootStartUp \
         2>${COLLECTOR_LOGS_DIR}/collector.log 1> /dev/null &"
 
 retval=$?
