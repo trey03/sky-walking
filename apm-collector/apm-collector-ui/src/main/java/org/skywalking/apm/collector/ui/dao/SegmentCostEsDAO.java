@@ -1,3 +1,21 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.ui.dao;
 
 import com.google.gson.JsonArray;
@@ -20,12 +38,12 @@ import org.skywalking.apm.collector.storage.define.segment.SegmentCostTable;
 import org.skywalking.apm.collector.storage.elasticsearch.dao.EsDAO;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class SegmentCostEsDAO extends EsDAO implements ISegmentCostDAO {
 
     @Override public JsonObject loadTop(long startTime, long endTime, long minCost, long maxCost, String operationName,
-        List<String> segmentIds, int limit, int from, Sort sort) {
+        Error error, int applicationId, List<String> segmentIds, int limit, int from, Sort sort) {
         SearchRequestBuilder searchRequestBuilder = getClient().prepareSearch(SegmentCostTable.TABLE);
         searchRequestBuilder.setTypes(SegmentCostTable.TABLE_TYPE);
         searchRequestBuilder.setSearchType(SearchType.DFS_QUERY_THEN_FETCH);
@@ -49,6 +67,14 @@ public class SegmentCostEsDAO extends EsDAO implements ISegmentCostDAO {
         }
         if (CollectionUtils.isNotEmpty(segmentIds)) {
             boolQueryBuilder.must().add(QueryBuilders.termsQuery(SegmentCostTable.COLUMN_SEGMENT_ID, segmentIds.toArray(new String[0])));
+        }
+        if (Error.True.equals(error)) {
+            boolQueryBuilder.must().add(QueryBuilders.termQuery(SegmentCostTable.COLUMN_IS_ERROR, true));
+        } else if (Error.False.equals(error)) {
+            boolQueryBuilder.must().add(QueryBuilders.termQuery(SegmentCostTable.COLUMN_IS_ERROR, false));
+        }
+        if (applicationId != 0) {
+            boolQueryBuilder.must().add(QueryBuilders.termQuery(SegmentCostTable.COLUMN_APPLICATION_ID, applicationId));
         }
 
         if (Sort.Cost.equals(sort)) {
@@ -84,6 +110,7 @@ public class SegmentCostEsDAO extends EsDAO implements ISegmentCostDAO {
                 topSegmentJson.addProperty(GlobalTraceTable.COLUMN_GLOBAL_TRACE_ID, globalTraces.get(0));
             }
 
+            topSegmentJson.addProperty(SegmentCostTable.COLUMN_APPLICATION_ID, (Number)searchHit.getSource().get(SegmentCostTable.COLUMN_APPLICATION_ID));
             topSegmentJson.addProperty(SegmentCostTable.COLUMN_SERVICE_NAME, (String)searchHit.getSource().get(SegmentCostTable.COLUMN_SERVICE_NAME));
             topSegmentJson.addProperty(SegmentCostTable.COLUMN_COST, (Number)searchHit.getSource().get(SegmentCostTable.COLUMN_COST));
             topSegmentJson.addProperty(SegmentCostTable.COLUMN_IS_ERROR, (Boolean)searchHit.getSource().get(SegmentCostTable.COLUMN_IS_ERROR));

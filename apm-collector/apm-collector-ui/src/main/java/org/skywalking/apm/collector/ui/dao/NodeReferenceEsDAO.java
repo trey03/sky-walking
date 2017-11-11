@@ -1,3 +1,21 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.ui.dao;
 
 import com.google.gson.JsonArray;
@@ -10,15 +28,15 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.sum.Sum;
+import org.skywalking.apm.collector.cache.ApplicationCache;
 import org.skywalking.apm.collector.core.util.StringUtils;
 import org.skywalking.apm.collector.storage.define.noderef.NodeReferenceTable;
 import org.skywalking.apm.collector.storage.elasticsearch.dao.EsDAO;
-import org.skywalking.apm.collector.ui.cache.ApplicationCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class NodeReferenceEsDAO extends EsDAO implements INodeReferenceDAO {
 
@@ -54,13 +72,13 @@ public class NodeReferenceEsDAO extends EsDAO implements INodeReferenceDAO {
         Terms frontApplicationIdTerms = searchResponse.getAggregations().get(NodeReferenceTable.COLUMN_FRONT_APPLICATION_ID);
         for (Terms.Bucket frontApplicationIdBucket : frontApplicationIdTerms.getBuckets()) {
             int applicationId = frontApplicationIdBucket.getKeyAsNumber().intValue();
-            String applicationCode = ApplicationCache.getForUI(applicationId);
+            String applicationCode = ApplicationCache.get(applicationId);
             Terms behindApplicationIdTerms = frontApplicationIdBucket.getAggregations().get(NodeReferenceTable.COLUMN_BEHIND_APPLICATION_ID);
             for (Terms.Bucket behindApplicationIdBucket : behindApplicationIdTerms.getBuckets()) {
                 int behindApplicationId = behindApplicationIdBucket.getKeyAsNumber().intValue();
 
                 if (behindApplicationId != 0) {
-                    String behindApplicationCode = ApplicationCache.getForUI(behindApplicationId);
+                    String behindApplicationCode = ApplicationCache.get(behindApplicationId);
 
                     Sum s1LTE = behindApplicationIdBucket.getAggregations().get(NodeReferenceTable.COLUMN_S1_LTE);
                     Sum s3LTE = behindApplicationIdBucket.getAggregations().get(NodeReferenceTable.COLUMN_S3_LTE);

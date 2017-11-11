@@ -1,12 +1,30 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.ui.service;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.util.List;
+import org.skywalking.apm.collector.cache.ApplicationCache;
 import org.skywalking.apm.collector.core.util.TimeBucketUtils;
 import org.skywalking.apm.collector.storage.dao.DAOContainer;
 import org.skywalking.apm.collector.storage.define.register.InstanceDataDefine;
-import org.skywalking.apm.collector.ui.cache.ApplicationCache;
 import org.skywalking.apm.collector.ui.dao.IGCMetricDAO;
 import org.skywalking.apm.collector.ui.dao.IInstPerformanceDAO;
 import org.skywalking.apm.collector.ui.dao.IInstanceDAO;
@@ -14,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class InstanceHealthService {
 
@@ -32,7 +50,7 @@ public class InstanceHealthService {
         response.add("instances", instances);
 
         instanceList.forEach(instance -> {
-            response.addProperty("applicationCode", ApplicationCache.getForUI(applicationId));
+            response.addProperty("applicationCode", ApplicationCache.get(applicationId));
             response.addProperty("applicationId", applicationId);
 
             IInstPerformanceDAO instPerformanceDAO = (IInstPerformanceDAO)DAOContainer.INSTANCE.get(IInstPerformanceDAO.class.getName());
@@ -41,10 +59,14 @@ public class InstanceHealthService {
             IGCMetricDAO gcMetricDAO = (IGCMetricDAO)DAOContainer.INSTANCE.get(IGCMetricDAO.class.getName());
             JsonObject instanceJson = new JsonObject();
             instanceJson.addProperty("id", instance.getInstanceId());
-            instanceJson.addProperty("tps", performance.getCalls());
+            if (performance != null) {
+                instanceJson.addProperty("tps", performance.getCalls());
+            } else {
+                instanceJson.addProperty("tps", 0);
+            }
 
             int avg = 0;
-            if (performance.getCalls() != 0) {
+            if (performance != null && performance.getCalls() != 0) {
                 avg = (int)(performance.getCostTotal() / performance.getCalls());
             }
             instanceJson.addProperty("avg", avg);

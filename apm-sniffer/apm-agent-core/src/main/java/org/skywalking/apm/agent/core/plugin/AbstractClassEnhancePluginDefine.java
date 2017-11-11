@@ -1,11 +1,29 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.agent.core.plugin;
 
 import net.bytebuddy.dynamic.DynamicType;
 import org.skywalking.apm.agent.core.plugin.interceptor.enhance.ClassEnhancePluginDefine;
 import org.skywalking.apm.agent.core.plugin.match.ClassMatch;
+import org.skywalking.apm.agent.core.logging.api.ILog;
+import org.skywalking.apm.agent.core.logging.api.LogManager;
 import org.skywalking.apm.util.StringUtil;
-import org.skywalking.apm.logging.ILog;
-import org.skywalking.apm.logging.LogManager;
 
 /**
  * Basic abstract class of all sky-walking auto-instrumentation plugins.
@@ -26,7 +44,7 @@ public abstract class AbstractClassEnhancePluginDefine {
      * @throws PluginException, when set builder failure.
      */
     public DynamicType.Builder<?> define(String transformClassName,
-        DynamicType.Builder<?> builder, ClassLoader classLoader) throws PluginException {
+        DynamicType.Builder<?> builder, ClassLoader classLoader, EnhanceContext context) throws PluginException {
         String interceptorDefineClassName = this.getClass().getName();
 
         if (StringUtil.isEmpty(transformClassName)) {
@@ -53,15 +71,16 @@ public abstract class AbstractClassEnhancePluginDefine {
         /**
          * find origin class source code for interceptor
          */
-        DynamicType.Builder<?> newClassBuilder = this.enhance(transformClassName, builder, classLoader);
+        DynamicType.Builder<?> newClassBuilder = this.enhance(transformClassName, builder, classLoader, context);
 
+        context.initializationStageCompleted();
         logger.debug("enhance class {} by {} completely.", transformClassName, interceptorDefineClassName);
 
         return newClassBuilder;
     }
 
     protected abstract DynamicType.Builder<?> enhance(String enhanceOriginClassName,
-        DynamicType.Builder<?> newClassBuilder, ClassLoader classLoader) throws PluginException;
+        DynamicType.Builder<?> newClassBuilder, ClassLoader classLoader, EnhanceContext context) throws PluginException;
 
     /**
      * Define the {@link ClassMatch} for filtering class.

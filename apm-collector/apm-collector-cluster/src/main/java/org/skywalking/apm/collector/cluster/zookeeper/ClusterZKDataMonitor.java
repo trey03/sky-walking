@@ -1,11 +1,29 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.cluster.zookeeper;
 
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -26,7 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class ClusterZKDataMonitor implements DataMonitor, Watcher {
 
@@ -42,14 +60,14 @@ public class ClusterZKDataMonitor implements DataMonitor, Watcher {
         registrations = new LinkedHashMap<>();
     }
 
-    @Override public void process(WatchedEvent event) {
+    @Override public synchronized void process(WatchedEvent event) {
         logger.info("changed path {}, event type: {}", event.getPath(), event.getType().name());
         if (listeners.containsKey(event.getPath())) {
             List<String> paths;
             try {
                 paths = client.getChildren(event.getPath(), true);
                 ClusterDataListener listener = listeners.get(event.getPath());
-                Set<String> remoteNodes = new HashSet<String>();
+                Set<String> remoteNodes = new HashSet<>();
                 Set<String> notifiedNodes = listener.getAddresses();
                 if (CollectionUtils.isNotEmpty(paths)) {
                     for (String serverPath : paths) {
@@ -65,9 +83,12 @@ public class ClusterZKDataMonitor implements DataMonitor, Watcher {
                         }
                     }
                 }
-                for (String address : notifiedNodes) {
+
+                String[] notifiedNodeArray = notifiedNodes.toArray(new String[notifiedNodes.size()]);
+                for (int i = notifiedNodeArray.length - 1; i >= 0; i--) {
+                    String address = notifiedNodeArray[i];
                     if (remoteNodes.isEmpty() || !remoteNodes.contains(address)) {
-                        logger.info("path children has been changed, path and data: {}", event.getPath() + "/" + address);
+                        logger.info("path children has been remove, path and data: {}", event.getPath() + "/" + address);
                         listener.removeAddress(address);
                         listener.serverQuitNotify(address);
                     }
@@ -94,9 +115,15 @@ public class ClusterZKDataMonitor implements DataMonitor, Watcher {
             client.getChildren(next.getKey(), true);
             String serverPath = next.getKey() + "/" + value.getHostPort();
 
-            if (client.exists(serverPath, false) == null) {
+            Stat stat = client.exists(serverPath, false);
+            if (stat != null) {
+                client.delete(serverPath, stat.getVersion());
+            }
+            stat = client.exists(serverPath, false);
+            if (stat == null) {
                 setData(serverPath, contextPath);
             } else {
+                client.delete(serverPath, stat.getVersion());
                 throw new ClusterNodeExistException("current address: " + value.getHostPort() + " has been registered, check the host and port configuration or wait a moment.");
             }
         }

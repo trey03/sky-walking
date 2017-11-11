@@ -1,14 +1,31 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.agent.core.remote;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcServerRule;
+
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.powermock.reflect.Whitebox;
 import org.skywalking.apm.agent.core.boot.ServiceManager;
@@ -76,13 +93,18 @@ public class TraceSegmentServiceClientTest {
         RemoteDownstreamConfig.Agent.APPLICATION_INSTANCE_ID = 1;
     }
 
+    @AfterClass
+    public static void afterClass() {
+        ServiceManager.INSTANCE.shutdown();
+    }
+
     @Before
     public void setUp() throws Throwable {
         Whitebox.setInternalState(ServiceManager.INSTANCE.findService(GRPCChannelManager.class), "reconnect", false);
         spy(serviceClient);
 
         Whitebox.setInternalState(serviceClient, "serviceStub",
-            TraceSegmentServiceGrpc.newStub(grpcServerRule.getChannel()));
+                TraceSegmentServiceGrpc.newStub(grpcServerRule.getChannel()));
         Whitebox.setInternalState(serviceClient, "status", GRPCChannelStatus.CONNECTED);
 
         upstreamSegments = new ArrayList<UpstreamSegment>();

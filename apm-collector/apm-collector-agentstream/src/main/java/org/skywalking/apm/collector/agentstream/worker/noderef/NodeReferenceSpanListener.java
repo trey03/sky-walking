@@ -1,11 +1,31 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.agentstream.worker.noderef;
 
 import java.util.LinkedList;
 import java.util.List;
-import org.skywalking.apm.collector.agentstream.worker.cache.InstanceCache;
 import org.skywalking.apm.collector.agentstream.worker.segment.EntrySpanListener;
 import org.skywalking.apm.collector.agentstream.worker.segment.ExitSpanListener;
 import org.skywalking.apm.collector.agentstream.worker.segment.RefsListener;
+import org.skywalking.apm.collector.agentstream.worker.segment.standardization.ReferenceDecorator;
+import org.skywalking.apm.collector.agentstream.worker.segment.standardization.SpanDecorator;
+import org.skywalking.apm.collector.cache.InstanceCache;
 import org.skywalking.apm.collector.core.framework.CollectorContextHelper;
 import org.skywalking.apm.collector.core.util.CollectionUtils;
 import org.skywalking.apm.collector.core.util.Const;
@@ -15,13 +35,11 @@ import org.skywalking.apm.collector.stream.StreamModuleContext;
 import org.skywalking.apm.collector.stream.StreamModuleGroupDefine;
 import org.skywalking.apm.collector.stream.worker.WorkerInvokeException;
 import org.skywalking.apm.collector.stream.worker.WorkerNotFoundException;
-import org.skywalking.apm.network.proto.SpanObject;
-import org.skywalking.apm.network.proto.TraceSegmentReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class NodeReferenceSpanListener implements EntrySpanListener, ExitSpanListener, RefsListener {
 
@@ -31,54 +49,51 @@ public class NodeReferenceSpanListener implements EntrySpanListener, ExitSpanLis
     private List<NodeReferenceDataDefine.NodeReference> references = new LinkedList<>();
 
     @Override
-    public void parseExit(SpanObject spanObject, int applicationId, int applicationInstanceId, String segmentId) {
+    public void parseExit(SpanDecorator spanDecorator, int applicationId, int applicationInstanceId, String segmentId) {
         NodeReferenceDataDefine.NodeReference nodeReference = new NodeReferenceDataDefine.NodeReference();
         nodeReference.setFrontApplicationId(applicationId);
-        nodeReference.setBehindApplicationId(spanObject.getPeerId());
-        nodeReference.setTimeBucket(TimeBucketUtils.INSTANCE.getMinuteTimeBucket(spanObject.getStartTime()));
+        nodeReference.setBehindApplicationId(spanDecorator.getPeerId());
+        nodeReference.setBehindPeer(Const.EMPTY_STRING);
+        nodeReference.setTimeBucket(TimeBucketUtils.INSTANCE.getMinuteTimeBucket(spanDecorator.getStartTime()));
 
         StringBuilder idBuilder = new StringBuilder();
-        idBuilder.append(nodeReference.getTimeBucket()).append(Const.ID_SPLIT).append(applicationId);
-        if (spanObject.getPeerId() != 0) {
-            nodeReference.setBehindPeer(Const.EMPTY_STRING);
-            idBuilder.append(Const.ID_SPLIT).append(spanObject.getPeerId());
-        } else {
-            nodeReference.setBehindPeer(spanObject.getPeer());
-            idBuilder.append(Const.ID_SPLIT).append(spanObject.getPeer());
-        }
+        idBuilder.append(nodeReference.getTimeBucket()).append(Const.ID_SPLIT).append(applicationId)
+            .append(Const.ID_SPLIT).append(spanDecorator.getPeerId());
+
         nodeReference.setId(idBuilder.toString());
-        nodeReferences.add(buildNodeRefSum(nodeReference, spanObject.getStartTime(), spanObject.getEndTime(), spanObject.getIsError()));
+        nodeReferences.add(buildNodeRefSum(nodeReference, spanDecorator.getStartTime(), spanDecorator.getEndTime(), spanDecorator.getIsError()));
     }
 
     @Override
-    public void parseEntry(SpanObject spanObject, int applicationId, int applicationInstanceId, String segmentId) {
+    public void parseEntry(SpanDecorator spanDecorator, int applicationId, int applicationInstanceId,
+        String segmentId) {
         if (CollectionUtils.isNotEmpty(references)) {
             references.forEach(nodeReference -> {
-                nodeReference.setTimeBucket(TimeBucketUtils.INSTANCE.getMinuteTimeBucket(spanObject.getStartTime()));
+                nodeReference.setTimeBucket(TimeBucketUtils.INSTANCE.getMinuteTimeBucket(spanDecorator.getStartTime()));
                 String idBuilder = String.valueOf(nodeReference.getTimeBucket()) + Const.ID_SPLIT + nodeReference.getFrontApplicationId() +
                     Const.ID_SPLIT + nodeReference.getBehindApplicationId();
 
                 nodeReference.setId(idBuilder);
-                nodeReferences.add(buildNodeRefSum(nodeReference, spanObject.getStartTime(), spanObject.getEndTime(), spanObject.getIsError()));
+                nodeReferences.add(buildNodeRefSum(nodeReference, spanDecorator.getStartTime(), spanDecorator.getEndTime(), spanDecorator.getIsError()));
             });
         } else {
             NodeReferenceDataDefine.NodeReference nodeReference = new NodeReferenceDataDefine.NodeReference();
             nodeReference.setFrontApplicationId(Const.USER_ID);
             nodeReference.setBehindApplicationId(applicationId);
             nodeReference.setBehindPeer(Const.EMPTY_STRING);
-            nodeReference.setTimeBucket(TimeBucketUtils.INSTANCE.getMinuteTimeBucket(spanObject.getStartTime()));
+            nodeReference.setTimeBucket(TimeBucketUtils.INSTANCE.getMinuteTimeBucket(spanDecorator.getStartTime()));
 
             String idBuilder = String.valueOf(nodeReference.getTimeBucket()) + Const.ID_SPLIT + nodeReference.getFrontApplicationId() +
                 Const.ID_SPLIT + nodeReference.getBehindApplicationId();
 
             nodeReference.setId(idBuilder);
-            nodeReferences.add(buildNodeRefSum(nodeReference, spanObject.getStartTime(), spanObject.getEndTime(), spanObject.getIsError()));
+            nodeReferences.add(buildNodeRefSum(nodeReference, spanDecorator.getStartTime(), spanDecorator.getEndTime(), spanDecorator.getIsError()));
         }
     }
 
-    @Override public void parseRef(TraceSegmentReference reference, int applicationId, int applicationInstanceId,
+    @Override public void parseRef(ReferenceDecorator referenceDecorator, int applicationId, int applicationInstanceId,
         String segmentId) {
-        int parentApplicationId = InstanceCache.get(reference.getParentApplicationInstanceId());
+        int parentApplicationId = InstanceCache.get(referenceDecorator.getParentApplicationInstanceId());
 
         NodeReferenceDataDefine.NodeReference referenceSum = new NodeReferenceDataDefine.NodeReference();
         referenceSum.setFrontApplicationId(parentApplicationId);

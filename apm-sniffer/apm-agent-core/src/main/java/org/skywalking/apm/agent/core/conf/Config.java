@@ -1,10 +1,26 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.agent.core.conf;
 
-import java.util.LinkedList;
-import java.util.List;
 import org.skywalking.apm.agent.core.context.trace.TraceSegment;
-import org.skywalking.apm.agent.core.logging.LogLevel;
-import org.skywalking.apm.agent.core.logging.WriterFactory;
+import org.skywalking.apm.agent.core.logging.core.LogLevel;
+import org.skywalking.apm.agent.core.logging.core.WriterFactory;
 
 /**
  * This is the core config in sniffer agent.
@@ -41,7 +57,7 @@ public class Config {
         /**
          * application and service registry check interval
          */
-        public static long APP_AND_SERVICE_REGISTER_CHECK_INTERVAL = 10;
+        public static long APP_AND_SERVICE_REGISTER_CHECK_INTERVAL = 3;
         /**
          * discovery rest check interval
          */
@@ -111,22 +127,6 @@ public class Config {
     }
 
     public static class Plugin {
-
-        /**
-         * Name of disabled plugin, The value spilt by <code>,</code>
-         * if you have multiple plugins need to disable.
-         *
-         * Here are the plugin names :
-         * tomcat-7.x/8.x, dubbo, jedis-2.x, motan, httpclient-4.x, jdbc, mongodb-3.x.
-         */
-        public static List DISABLED_PLUGINS = new LinkedList();
-
-        /**
-         * Name of force enable plugin, The value spilt by <code>,</code>
-         * if you have multiple plugins need to enable.
-         */
-        public static List FORCE_ENABLE_PLUGINS = new LinkedList();
-
         public static class MongoDB {
             /**
              * If true, trace all the parameters, default is false.

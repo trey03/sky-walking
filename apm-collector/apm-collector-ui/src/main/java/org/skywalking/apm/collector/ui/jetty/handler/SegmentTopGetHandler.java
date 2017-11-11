@@ -1,7 +1,26 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.ui.jetty.handler;
 
 import com.google.gson.JsonElement;
 import javax.servlet.http.HttpServletRequest;
+import org.skywalking.apm.collector.core.util.StringUtils;
 import org.skywalking.apm.collector.server.jetty.ArgumentsParseException;
 import org.skywalking.apm.collector.server.jetty.JettyHandler;
 import org.skywalking.apm.collector.ui.dao.ISegmentCostDAO;
@@ -10,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class SegmentTopGetHandler extends JettyHandler {
 
@@ -78,6 +97,27 @@ public class SegmentTopGetHandler extends JettyHandler {
             operationName = req.getParameter("operationName");
         }
 
+        int applicationId;
+        try {
+            applicationId = Integer.valueOf(req.getParameter("applicationId"));
+        } catch (NumberFormatException e) {
+            throw new ArgumentsParseException("the request parameter applicationId must be a int");
+        }
+
+        ISegmentCostDAO.Error error;
+        String errorStr = req.getParameter("error");
+        if (StringUtils.isNotEmpty(errorStr)) {
+            if ("true".equals(errorStr)) {
+                error = ISegmentCostDAO.Error.True;
+            } else if ("false".equals(errorStr)) {
+                error = ISegmentCostDAO.Error.False;
+            } else {
+                error = ISegmentCostDAO.Error.All;
+            }
+        } else {
+            error = ISegmentCostDAO.Error.All;
+        }
+
         ISegmentCostDAO.Sort sort = ISegmentCostDAO.Sort.Cost;
         if (req.getParameterMap().containsKey("sort")) {
             String sortStr = req.getParameter("sort");
@@ -86,7 +126,7 @@ public class SegmentTopGetHandler extends JettyHandler {
             }
         }
 
-        return service.loadTop(startTime, endTime, minCost, maxCost, operationName, globalTraceId, limit, from, sort);
+        return service.loadTop(startTime, endTime, minCost, maxCost, operationName, globalTraceId, error, applicationId, limit, from, sort);
     }
 
     @Override protected JsonElement doPost(HttpServletRequest req) throws ArgumentsParseException {

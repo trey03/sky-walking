@@ -1,19 +1,35 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.agent;
 
-import java.lang.instrument.Instrumentation;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
 import org.skywalking.apm.agent.core.boot.ServiceManager;
 import org.skywalking.apm.agent.core.conf.SnifferConfigInitializer;
-import org.skywalking.apm.agent.core.logging.EasyLogResolver;
-import org.skywalking.apm.agent.core.plugin.AbstractClassEnhancePluginDefine;
-import org.skywalking.apm.agent.core.plugin.PluginBootstrap;
-import org.skywalking.apm.agent.core.plugin.PluginException;
-import org.skywalking.apm.agent.core.plugin.PluginFinder;
-import org.skywalking.apm.logging.ILog;
-import org.skywalking.apm.logging.LogManager;
+import org.skywalking.apm.agent.core.logging.api.ILog;
+import org.skywalking.apm.agent.core.logging.api.LogManager;
+import org.skywalking.apm.agent.core.plugin.*;
+
+import java.lang.instrument.Instrumentation;
+import java.util.List;
 
 /**
  * The main entrance of sky-waking agent,
@@ -22,12 +38,7 @@ import org.skywalking.apm.logging.LogManager;
  * @author wusheng
  */
 public class SkyWalkingAgent {
-    private static final ILog logger;
-
-    static {
-        LogManager.setLogResolver(new EasyLogResolver());
-        logger = LogManager.getLogger(SkyWalkingAgent.class);
-    }
+    private static final ILog logger = LogManager.getLogger(SkyWalkingAgent.class);
 
     /**
      * Main entrance.
@@ -38,11 +49,17 @@ public class SkyWalkingAgent {
      * @throws PluginException
      */
     public static void premain(String agentArgs, Instrumentation instrumentation) throws PluginException {
-        SnifferConfigInitializer.initialize();
+        final PluginFinder pluginFinder;
+        try {
+            SnifferConfigInitializer.initialize();
 
-        final PluginFinder pluginFinder = new PluginFinder(new PluginBootstrap().loadPlugins());
+            pluginFinder = new PluginFinder(new PluginBootstrap().loadPlugins());
 
-        ServiceManager.INSTANCE.boot();
+            ServiceManager.INSTANCE.boot();
+        } catch (Exception e) {
+            logger.error(e, "Skywalking agent initialized failure. Shutting down.");
+            return;
+        }
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override public void run() {
@@ -54,13 +71,21 @@ public class SkyWalkingAgent {
             @Override
             public DynamicType.Builder<?> transform(DynamicType.Builder<?> builder, TypeDescription typeDescription,
                 ClassLoader classLoader, JavaModule module) {
-                AbstractClassEnhancePluginDefine pluginDefine = pluginFinder.find(typeDescription, classLoader);
-                if (pluginDefine != null) {
-                    DynamicType.Builder<?> newBuilder = pluginDefine.define(typeDescription.getTypeName(), builder, classLoader);
-                    if (newBuilder != null) {
-                        logger.debug("Finish the prepare stage for {}.", typeDescription.getName());
-                        return newBuilder;
+                List<AbstractClassEnhancePluginDefine> pluginDefines = pluginFinder.find(typeDescription, classLoader);
+                if (pluginDefines.size() > 0) {
+                    DynamicType.Builder<?> newBuilder = builder;
+                    EnhanceContext context = new EnhanceContext();
+                    for (AbstractClassEnhancePluginDefine define : pluginDefines) {
+                        DynamicType.Builder<?> possibleNewBuilder = define.define(typeDescription.getTypeName(), newBuilder, classLoader, context);
+                        if (possibleNewBuilder != null) {
+                            newBuilder = possibleNewBuilder;
+                        }
                     }
+                    if (context.isEnhanced()) {
+                        logger.debug("Finish the prepare stage for {}.", typeDescription.getName());
+                    }
+
+                    return newBuilder;
                 }
 
                 logger.debug("Matched class {}, but ignore by finding mechanism.", typeDescription.getTypeName());

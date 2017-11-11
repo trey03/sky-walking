@@ -1,3 +1,21 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.agent.core.plugin.interceptor.enhance;
 
 import net.bytebuddy.dynamic.DynamicType;
@@ -6,13 +24,14 @@ import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.SuperMethodCall;
 import net.bytebuddy.implementation.bind.annotation.Morph;
 import org.skywalking.apm.agent.core.plugin.AbstractClassEnhancePluginDefine;
+import org.skywalking.apm.agent.core.plugin.EnhanceContext;
 import org.skywalking.apm.agent.core.plugin.PluginException;
 import org.skywalking.apm.agent.core.plugin.interceptor.ConstructorInterceptPoint;
 import org.skywalking.apm.agent.core.plugin.interceptor.EnhanceException;
 import org.skywalking.apm.agent.core.plugin.interceptor.InstanceMethodsInterceptPoint;
 import org.skywalking.apm.agent.core.plugin.interceptor.StaticMethodsInterceptPoint;
-import org.skywalking.apm.logging.ILog;
-import org.skywalking.apm.logging.LogManager;
+import org.skywalking.apm.agent.core.logging.api.ILog;
+import org.skywalking.apm.agent.core.logging.api.LogManager;
 import org.skywalking.apm.util.StringUtil;
 
 import static net.bytebuddy.jar.asm.Opcodes.ACC_PRIVATE;
@@ -46,10 +65,11 @@ public abstract class ClassEnhancePluginDefine extends AbstractClassEnhancePlugi
      */
     @Override
     protected DynamicType.Builder<?> enhance(String enhanceOriginClassName,
-        DynamicType.Builder<?> newClassBuilder, ClassLoader classLoader) throws PluginException {
+        DynamicType.Builder<?> newClassBuilder, ClassLoader classLoader,
+        EnhanceContext context) throws PluginException {
         newClassBuilder = this.enhanceClass(enhanceOriginClassName, newClassBuilder, classLoader);
 
-        newClassBuilder = this.enhanceInstance(enhanceOriginClassName, newClassBuilder, classLoader);
+        newClassBuilder = this.enhanceInstance(enhanceOriginClassName, newClassBuilder, classLoader, context);
 
         return newClassBuilder;
     }
@@ -62,7 +82,8 @@ public abstract class ClassEnhancePluginDefine extends AbstractClassEnhancePlugi
      * @return new byte-buddy's builder for further manipulation.
      */
     private DynamicType.Builder<?> enhanceInstance(String enhanceOriginClassName,
-        DynamicType.Builder<?> newClassBuilder, ClassLoader classLoader) throws PluginException {
+        DynamicType.Builder<?> newClassBuilder, ClassLoader classLoader,
+        EnhanceContext context) throws PluginException {
         ConstructorInterceptPoint[] constructorInterceptPoints = getConstructorsInterceptPoints();
         InstanceMethodsInterceptPoint[] instanceMethodsInterceptPoints = getInstanceMethodsInterceptPoints();
 
@@ -83,16 +104,21 @@ public abstract class ClassEnhancePluginDefine extends AbstractClassEnhancePlugi
         }
 
         /**
-         * alter class source code.<br/>
+         * Manipulate class source code.<br/>
          *
          * new class need:<br/>
          * 1.Add field, name {@link #CONTEXT_ATTR_NAME}.
          * 2.Add a field accessor for this field.
          *
+         * And make sure the source codes manipulation only occurs once.
+         *
          */
-        newClassBuilder = newClassBuilder.defineField(CONTEXT_ATTR_NAME, Object.class, ACC_PRIVATE)
-            .implement(EnhancedInstance.class)
-            .intercept(FieldAccessor.ofField(CONTEXT_ATTR_NAME));
+        if (!context.isObjectExtended()) {
+            newClassBuilder = newClassBuilder.defineField(CONTEXT_ATTR_NAME, Object.class, ACC_PRIVATE)
+                .implement(EnhancedInstance.class)
+                .intercept(FieldAccessor.ofField(CONTEXT_ATTR_NAME));
+            context.extendObjectCompleted();
+        }
 
         /**
          * 2. enhance constructors

@@ -1,0 +1,3 @@
+org.skywalking.apm.collector.cache.dao.ApplicationEsCacheDAO
+org.skywalking.apm.collector.cache.dao.InstanceEsCacheDAO
+org.skywalking.apm.collector.cache.dao.ServiceNameEsCacheDAO

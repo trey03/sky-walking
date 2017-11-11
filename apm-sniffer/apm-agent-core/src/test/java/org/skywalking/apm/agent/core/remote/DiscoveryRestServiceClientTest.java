@@ -1,11 +1,29 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.agent.core.remote;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+
 import java.io.IOException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+
+import org.junit.*;
+import org.skywalking.apm.agent.core.boot.ServiceManager;
 import org.skywalking.apm.agent.core.conf.Config;
 import org.skywalking.apm.agent.core.conf.RemoteDownstreamConfig;
 import org.skywalking.apm.agent.core.test.tools.AgentServiceRule;
@@ -26,32 +44,37 @@ public class DiscoveryRestServiceClientTest {
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(8089);
 
+    @AfterClass
+    public static void afterClass() {
+        ServiceManager.INSTANCE.shutdown();
+    }
+
     @Before
     public void setUpBeforeClass() {
         Config.Collector.DISCOVERY_CHECK_INTERVAL = 1;
         stubFor(get(urlEqualTo("/withoutResult"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody("[]")));
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("[]")));
         stubFor(get(urlEqualTo("/withResult"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody("['127.0.0.1:8080','127.0.0.1:8090']")));
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("['127.0.0.1:8080','127.0.0.1:8090']")));
         stubFor(get(urlEqualTo("/withSameResult"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody("['127.0.0.1:8090','127.0.0.1:8080']")));
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("['127.0.0.1:8090','127.0.0.1:8080']")));
         stubFor(get(urlEqualTo("/withDifferenceResult"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody("['127.0.0.1:9090','127.0.0.1:18090']")));
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("['127.0.0.1:9090','127.0.0.1:18090']")));
         stubFor(get(urlEqualTo("/with404"))
-            .willReturn(aResponse()
-                .withStatus(400)));
+                .willReturn(aResponse()
+                        .withStatus(400)));
     }
 
     @Test

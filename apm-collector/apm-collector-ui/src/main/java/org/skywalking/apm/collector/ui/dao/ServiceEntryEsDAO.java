@@ -1,3 +1,21 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.ui.dao;
 
 import com.google.gson.JsonArray;
@@ -11,14 +29,14 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.skywalking.apm.collector.cache.ApplicationCache;
 import org.skywalking.apm.collector.core.util.ColumnNameUtils;
 import org.skywalking.apm.collector.core.util.StringUtils;
 import org.skywalking.apm.collector.storage.define.service.ServiceEntryTable;
 import org.skywalking.apm.collector.storage.elasticsearch.dao.EsDAO;
-import org.skywalking.apm.collector.ui.cache.ApplicationCache;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class ServiceEntryEsDAO extends EsDAO implements IServiceEntryDAO {
 
@@ -57,7 +75,7 @@ public class ServiceEntryEsDAO extends EsDAO implements IServiceEntryDAO {
         for (SearchHit searchHit : searchHits.getHits()) {
             int applicationId = ((Number)searchHit.getSource().get(ServiceEntryTable.COLUMN_APPLICATION_ID)).intValue();
             int entryServiceId = ((Number)searchHit.getSource().get(ServiceEntryTable.COLUMN_ENTRY_SERVICE_ID)).intValue();
-            String applicationCode = ApplicationCache.getForUI(applicationId);
+            String applicationCode = ApplicationCache.get(applicationId);
             String entryServiceName = (String)searchHit.getSource().get(ServiceEntryTable.COLUMN_ENTRY_SERVICE_NAME);
 
             JsonObject row = new JsonObject();

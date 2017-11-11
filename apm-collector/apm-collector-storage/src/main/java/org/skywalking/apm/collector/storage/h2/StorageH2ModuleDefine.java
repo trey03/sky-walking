@@ -1,3 +1,21 @@
+/*
+ * Copyright 2017, OpenSkywalking Organization All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project repository: https://github.com/OpenSkywalking/skywalking
+ */
+
 package org.skywalking.apm.collector.storage.h2;
 
 import java.util.List;
@@ -14,7 +32,7 @@ import org.skywalking.apm.collector.storage.h2.dao.H2DAODefineLoader;
 import org.skywalking.apm.collector.storage.h2.define.H2StorageInstaller;
 
 /**
- * @author pengys5
+ * @author peng-yongsheng
  */
 public class StorageH2ModuleDefine extends StorageModuleDefine {
 
@@ -28,12 +46,16 @@ public class StorageH2ModuleDefine extends StorageModuleDefine {
         return MODULE_NAME;
     }
 
+    @Override public final boolean defaultModule() {
+        return true;
+    }
+
     @Override protected ModuleConfigParser configParser() {
         return new StorageH2ConfigParser();
     }
 
     @Override protected Client createClient() {
-        return new H2Client();
+        return new H2Client(StorageH2Config.URL, StorageH2Config.USER_NAME, StorageH2Config.PASSWORD);
     }
 
     @Override public StorageInstaller storageInstaller() {
